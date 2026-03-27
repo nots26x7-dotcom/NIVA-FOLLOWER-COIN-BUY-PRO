@@ -1,0 +1,368 @@
+<!DOCTYPE html> 
+<html lang="en"> 
+<head> 
+    <meta charset="UTF-8"> 
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
+    <title>NivaFollowerCoinBuy - Admin Panel</title> 
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script> 
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script> 
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet"> 
+    <style> 
+        /* --- DARK THEME COLORS --- */
+        :root { 
+            --primary: #3b82f6; 
+            --bg: #0f172a; 
+            --card: #1e293b; 
+            --text: #f8fafc; 
+            --subtext: #94a3b8;
+            --white: #ffffff; 
+            --danger: #ef4444; 
+            --success: #10b981; 
+            --warning: #f59e0b; 
+            --border: rgba(255,255,255,0.08);
+        } 
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); margin: 0; padding: 10px; color: var(--text); font-size: 13px; } 
+
+        #lock-screen { position: fixed; inset: 0; background: #070b14; display: none; align-items: center; justify-content: center; z-index: 9999; } 
+        .lock-box { background: var(--card); padding: 30px; border-radius: 20px; text-align: center; width: 280px; border: 1px solid var(--border); } 
+
+        .container { max-width: 500px; margin: 0 auto; display: none; } 
+        .access-screen { position: fixed; inset: 0; background: #070b14; display: none; align-items: center; justify-content: center; z-index: 10000; padding: 20px; }
+        .access-box { background: var(--card); padding: 28px; border-radius: 22px; text-align: center; width: 100%; max-width: 320px; border: 1px solid var(--border); }
+        
+        .stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+        .stat-box { background: var(--card); padding: 12px; border-radius: 15px; border: 1px solid var(--border); text-align: center; }
+        .stat-box small { font-weight: 800; color: var(--subtext); font-size: 9px; display: block; }
+        .stat-box h3 { margin: 5px 0 0; font-size: 18px; color: white; }
+
+        .main-card { background: var(--card); border-radius: 20px; padding: 15px; margin-bottom: 12px; border: 1px solid var(--border); } 
+        
+        .tab-menu { display: flex; background: rgba(0,0,0,0.2); border-radius: 12px; padding: 4px; margin-bottom: 12px; gap: 4px; overflow-x: auto; } 
+        .tab { flex: 1; text-align: center; padding: 10px 5px; font-size: 10px; font-weight: 800; cursor: pointer; border-radius: 10px; color: var(--subtext); display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 70px; } 
+        .tab.active { background: var(--primary); color: white; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3); } 
+        .tab-count { font-size: 9px; padding: 1px 6px; border-radius: 10px; background: rgba(255,255,255,0.1); color: white; }
+
+        .order-box { position: relative; border: 1px solid var(--border); border-radius: 18px; padding: 12px; margin-bottom: 10px; background: rgba(255,255,255,0.02); border-left: 5px solid var(--primary); } 
+        .status-badge { position: absolute; top: 12px; right: 12px; padding: 4px 8px; border-radius: 6px; font-size: 9px; font-weight: 800; text-transform: uppercase; }
+        .status-pending { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+        .status-completed { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+        .status-rejected { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0; }
+        .info-item { background: rgba(255,255,255,0.03); padding: 8px; border-radius: 10px; border: 1px solid var(--border); }
+        .info-item small { display: block; font-size: 8px; font-weight: 800; color: var(--subtext); }
+        .info-item b { font-size: 11px; color: white; }
+
+        .coin-box { border: 1px solid var(--border); border-radius: 20px; padding: 15px; margin-bottom: 15px; background: rgba(255,255,255,0.02); border-left: 5px solid var(--success); } 
+        .rate-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+        .rate-box { background: rgba(0,0,0,0.2); padding: 8px; border-radius: 12px; border: 1px solid var(--border); }
+        .rate-box input { border: none; background: transparent; width: 100%; font-weight: 700; outline: none; color: var(--primary); }
+
+        .btn { border: none; padding: 10px; border-radius: 12px; font-weight: 800; cursor: pointer; width: 100%; } 
+        input, select { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid var(--border); margin-bottom: 8px; box-sizing: border-box; background: rgba(0,0,0,0.2); color: white; outline: none; }
+        
+        .user-row { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(255,255,255,0.03); border-radius: 12px; margin-bottom: 8px; border: 1px solid var(--border); }
+
+        .switch { position: relative; display: inline-block; width: 34px; height: 18px; } 
+        .switch input { opacity: 0; width: 0; height: 0; } 
+        .slider { position: absolute; inset: 0; background-color: #334155; border-radius: 34px; transition: .4s; }
+        .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 2px; bottom: 2px; background-color: white; border-radius: 50%; transition: .4s; }
+        input:checked + .slider { background-color: var(--success); }
+        input:checked + .slider:before { transform: translateX(16px); }
+        .main-card, .coin-box, .order-box, .stat-box, .user-row { animation: riseIn .45s ease both; }
+        .btn:active { transform: scale(.98); }
+        @keyframes riseIn { from { opacity:0; transform: translateY(10px);} to { opacity:1; transform: translateY(0);} }
+    </style> 
+</head> 
+<body> 
+
+<div id="access-denied" class="access-screen"> 
+    <div class="access-box"> 
+        <div style="font-size:42px; margin-bottom:10px;">⛔</div>
+        <h3 style="color: white; margin-top: 0;">Access Denied</h3> 
+        <p style="color: var(--subtext); line-height: 1.6; margin-bottom: 18px;">Only allowed Telegram admin accounts can open this panel.</p>
+        <button class="btn" style="background:var(--primary); color:white;" onclick="goBackToUserPanel()">Back to User Panel</button> 
+    </div> 
+</div>
+
+<div class="container" id="admin-panel"> 
+    <div style="display:flex; justify-content:space-between; align-items:center; margin:0 auto 12px; max-width:500px;">
+        <button class="btn" style="background:rgba(255,255,255,0.06); color:white; border:1px solid var(--border); width:auto; padding:10px 14px;" onclick="goBackToUserPanel()">← Back</button>
+        <div style="font-weight:800; color:var(--subtext); font-size:12px;">NivaFollowerCoinBuy Admin Panel</div>
+    </div>
+    <div class="stats-row">
+        <div class="stat-box">
+            <small>PENDING ORDERS</small>
+            <h3 id="stat-pending-count" style="color:var(--warning)">0</h3>
+        </div>
+        
+    </div>
+
+    <div class="main-card"> 
+        <div class="tab-menu"> 
+            <div class="tab active" id="tab-btn-pending" onclick="filterTab('pending', this)">
+                PENDING <span class="tab-count" id="count-pending">0</span>
+            </div> 
+            <div class="tab" id="tab-btn-completed" onclick="filterTab('completed', this)">
+                APPROVED <span class="tab-count" id="count-completed">0</span>
+            </div> 
+            <div class="tab" id="tab-btn-rejected" onclick="filterTab('rejected', this)">
+                REJECTED <span class="tab-count" id="count-rejected">0</span>
+            </div> 
+            <div class="tab" id="tab-btn-settings" onclick="filterTab('settings', this)">
+                ⚙️ SETTINGS
+            </div>
+        </div> 
+
+        <div id="order-list-section">
+            <div id="order-list"></div> 
+        </div>
+
+        <div id="settings-section" style="display:none; border-top: 1px solid var(--border); padding-top: 10px;">
+            <span style="font-weight:800; display:block; margin-bottom:12px; color: var(--primary);">🏆 Leaderboard Management</span>
+            <div id="leaderboard-list"></div>
+            <button class="btn" style="margin-top:10px; background:rgba(239, 68, 68, 0.1); color:var(--danger); border: 1px solid var(--danger);" onclick="if(confirm('Clear all rankings?')) db.ref('leaderboard').remove()">Reset All Rankings</button>
+            <hr style="margin:20px 0; border:0; border-top:1px solid var(--border);">
+
+            <span style="font-weight:800; display:block; margin-bottom:12px; color: var(--success);">🪙 Coin Management</span>
+            <div style="background:rgba(255,255,255,0.02); padding:15px; border-radius:15px; border:1px dashed #475569; margin-bottom:15px;">
+                <input type="text" id="c-name" placeholder="Coin Name"> 
+                <input type="text" id="c-tid" placeholder="Transfer ID">
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                    <input type="number" id="c-user-rate" placeholder="User Rate">
+                    <input type="number" id="c-admin-rate" placeholder="Admin Rate">
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
+                    <input type="number" id="c-admin-rate-min" placeholder="Admin Rate From Coin">
+                    <input type="number" id="c-min-submit" placeholder="Min Submit Limit">
+                </div>
+                <button class="btn" style="background:var(--primary); color:white;" onclick="addCoin()">+ Add New Coin</button>
+            </div>
+            <div id="coin-list"></div>
+            <hr style="margin:20px 0; border:0; border-top:1px solid var(--border);">
+
+            <span style="font-weight:800; display:block; margin-bottom:12px; color: #a855f7;">🌐 Branding, Help Line & Channel</span>
+            <input type="text" id="site-name" placeholder="Website Name" style="margin-bottom:10px;">
+            <input type="text" id="link-channel" placeholder="Channel Link" style="margin-bottom:10px;">
+            <input type="text" id="link-help" placeholder="Help Line Link" style="margin-bottom:10px;">
+            <button class="btn" style="background:var(--primary); color:white; margin-bottom:15px;" onclick="saveBrandingAndLinks()">Update Branding & Links</button>
+            
+            <div style="display:flex; gap:8px;">
+                <input type="text" id="new-pay-method" placeholder="Method Name">
+                <button class="btn" style="background:var(--success); color:white; width:80px; margin:0;" onclick="addPayment()">Add</button>
+            </div>
+            <div id="payment-list" style="margin-top:10px;"></div>
+        </div>
+    </div> 
+</div> 
+
+<script> 
+const firebaseConfig = {
+apiKey: "AIzaSyAEuR1bXDA0E0ZbjhY8lz0e02K082BlHp8",
+  authDomain: "niva-follower-coin-buy.firebaseapp.com",
+  databaseURL: "https://niva-follower-coin-buy-default-rtdb.firebaseio.com",
+  projectId: "niva-follower-coin-buy",
+  storageBucket: "niva-follower-coin-buy.firebasestorage.app",
+  messagingSenderId: "210909664700",
+  appId: "1:210909664700:web:2059742033ea39a3a947b9",
+  measurementId: "G-N7BWK1LYZD"
+}; 
+firebase.initializeApp(firebaseConfig); 
+const db = firebase.database(); 
+const tg = window.Telegram.WebApp;
+tg.ready();
+tg.expand();
+
+// IMPORTANT: ekhane user.html er sathe same admin Telegram user ID gulo rakhben
+const ADMIN_IDS = [8505710811, 7665757155];
+const tgUser = tg.initDataUnsafe.user || {};
+const currentUserId = Number(tgUser.id || 0);
+const isAdmin = ADMIN_IDS.includes(currentUserId);
+
+let currentTab = 'pending';
+
+function filterTab(t, el) { 
+    currentTab = t; 
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active')); 
+    el.classList.add('active'); 
+    
+    const orderSection = document.getElementById('order-list-section');
+    const settingsSection = document.getElementById('settings-section');
+
+    if(t === 'settings') {
+        orderSection.style.display = 'none';
+        settingsSection.style.display = 'block';
+    } else {
+        orderSection.style.display = 'block';
+        settingsSection.style.display = 'none';
+        db.ref('orders').once('value', s => renderOrders(s.val() || {})); 
+    }
+}
+
+function startSystem() {
+    db.ref('orders').on('value', snap => {
+        const orders = snap.val() || {};
+        let counts = { pending: 0, completed: 0, rejected: 0 };
+        Object.values(orders).forEach(o => {
+            counts[o.status]++;
+        });
+        document.getElementById('stat-pending-count').innerText = counts.pending;
+        document.getElementById('count-pending').innerText = counts.pending;
+        document.getElementById('count-completed').innerText = counts.completed;
+        document.getElementById('count-rejected').innerText = counts.rejected;
+        
+        if(currentTab !== 'settings') renderOrders(orders);
+    });
+
+    db.ref('leaderboard').on('value', s => {
+        const users = s.val() || {};
+        let lbHtml = "";
+        Object.values(users).sort((a,b) => b.totalAmount - a.totalAmount).forEach(u => {
+            lbHtml += `
+            <div class="user-row">
+                <div><b style="color:white">@${u.user}</b><br><small style="color:var(--success)">${u.totalAmount.toFixed(2)}৳</small></div>
+                <button style="border:none; color:var(--danger); background:none; font-weight:800; cursor:pointer;" onclick="if(confirm('Delete user?')) db.ref('leaderboard/${u.user}').remove()">DEL</button>
+            </div>`;
+        });
+        document.getElementById('leaderboard-list').innerHTML = lbHtml || "<center style='color:var(--subtext)'>No Users</center>";
+    });
+
+    renderCoinList();
+    renderPaymentList();
+}
+
+function renderOrders(orders) { 
+    let html = ""; 
+    Object.values(orders).reverse().forEach(o => { 
+        if(o.status === currentTab) { 
+            html += `
+            <div class="order-box" style="border-left-color: ${currentTab==='pending'?'#f59e0b':currentTab==='completed'?'#10b981':'#ef4444'}"> 
+                <div class="status-badge status-${o.status}">${o.status.toUpperCase()}</div>
+                <div style="display:flex; justify-content:space-between;"><span style="font-weight:800; color:white;">@${o.user}</span><small style="color:var(--subtext)">#${o.id.toString().slice(-4)}</small></div>
+                <div class="info-grid">
+                    <div class="info-item"><small>Pay To</small><b>${o.number} (${o.method})</b></div>
+                    <div class="info-item"><small>Coin</small><b>${o.amt} ${o.coin}</b></div>
+                    <div class="info-item"><small>Sender</small><b>${o.sender}</b></div>
+                    <div class="info-item"><small>Payout</small><b style="color:var(--success)">${o.payable}৳</b></div>
+                    <div class="info-item"><small>Rate Used</small><b>${o.appliedRate || 0}৳ (${o.appliedRateType || 'user'})</b></div>
+                </div>
+                <div style="display:flex; gap:8px;"> 
+                    ${currentTab === 'pending' ? `<button class="btn" style="background:var(--success); color:white; flex:2;" onclick="updOrd('${o.id}','completed','${o.user}',${o.payable})">Accept</button><button class="btn" style="background:rgba(239, 68, 68, 0.1); color:var(--danger); border:1px solid var(--danger); flex:1;" onclick="updOrd('${o.id}','rejected')">Reject</button>` : ''} 
+                    <button class="btn" style="background:rgba(255,255,255,0.05); color:var(--subtext); width:50px;" onclick="if(confirm('Delete?')) db.ref('orders/${o.id}').remove()">Del</button> 
+                </div> 
+            </div>`; 
+        } 
+    }); 
+    document.getElementById('order-list').innerHTML = html || "<center style='color:var(--subtext); padding:20px;'>Empty</center>"; 
+}
+
+function updOrd(id, s, u, p) { db.ref('orders/'+id).update({status:s}); if(s === 'completed' && u) { db.ref('leaderboard/'+u).once('value', sn => { let d = sn.val() || {totalAmount:0, user: u}; db.ref('leaderboard/'+u).update({ user:u, totalAmount: (parseFloat(d.totalAmount)+p) }); }); } }
+
+function renderCoinList() {
+    db.ref('marketConfig').on('value', snap => { 
+        let html = ""; snap.forEach(c => { 
+            const v = c.val(); 
+            html += `
+            <div class="coin-box" style="border-left-color: ${v.status ? '#10b981' : '#ef4444'}">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <span style="font-weight:800; color:var(--primary); font-size:15px;">💎 ${c.key}</span>
+                    <label class="switch"><input type="checkbox" ${v.status?'checked':''} onchange="db.ref('marketConfig/${c.key}').update({status:this.checked})"><span class="slider"></span></label>
+                </div>
+                <input type="text" value="${v.transferId || ''}" onchange="db.ref('marketConfig/${c.key}').update({transferId: this.value})">
+                <div class="rate-grid">
+                    <div class="rate-box"><small style="color:var(--subtext)">USER RATE</small><input type="number" value="${v.userRate || 0}" onchange="db.ref('marketConfig/${c.key}').update({userRate: parseFloat(this.value) || 0})"></div>
+                    <div class="rate-box"><small style="color:var(--subtext)">ADMIN RATE</small><input type="number" value="${v.adminRate || 0}" onchange="db.ref('marketConfig/${c.key}').update({adminRate: parseFloat(this.value) || 0})"></div>
+                </div>
+                <div class="rate-grid">
+                    <div class="rate-box"><small style="color:var(--subtext)">ADMIN RATE FROM</small><input type="number" value="${v.adminRateMinCoins || v.minSubmitLimit || 0}" onchange="db.ref('marketConfig/${c.key}').update({adminRateMinCoins: parseFloat(this.value) || 0})"></div>
+                    <div class="rate-box"><small style="color:var(--subtext)">MIN SUBMIT LIMIT</small><input type="number" value="${v.minSubmitLimit || 0}" onchange="db.ref('marketConfig/${c.key}').update({minSubmitLimit: parseFloat(this.value) || 0})"></div>
+                </div>
+                <button class="btn" style="margin-top:10px; padding:5px; font-size:10px; background:rgba(239, 68, 68, 0.1); color:var(--danger);" onclick="db.ref('marketConfig/${c.key}').remove()">Remove</button>
+            </div>`; 
+        }); 
+        document.getElementById('coin-list').innerHTML = html || "<center style='color:var(--subtext)'>No Coins</center>"; 
+    });
+}
+
+function addCoin() { 
+    const n = document.getElementById('c-name').value.trim();
+    const tid = document.getElementById('c-tid').value.trim();
+    const ur = document.getElementById('c-user-rate').value;
+    const ar = document.getElementById('c-admin-rate').value;
+    const arm = document.getElementById('c-admin-rate-min').value;
+    const msl = document.getElementById('c-min-submit').value;
+
+    if(n && tid && ur && ar && arm && msl) {
+        db.ref('marketConfig/'+n).set({
+            transferId: tid,
+            userRate: parseFloat(ur) || 0,
+            adminRate: parseFloat(ar) || 0,
+            adminRateMinCoins: parseFloat(arm) || 0,
+            minSubmitLimit: parseFloat(msl) || 0,
+            status: true
+        }).then(() => {
+            document.getElementById('c-name').value = '';
+            document.getElementById('c-tid').value = '';
+            document.getElementById('c-user-rate').value = '';
+            document.getElementById('c-admin-rate').value = '';
+            document.getElementById('c-admin-rate-min').value = '';
+            document.getElementById('c-min-submit').value = '';
+        });
+    } else {
+        alert('সব field fill korun');
+    }
+}
+
+function normalizeLink(url) {
+    const value = (url || '').trim();
+    if (!value) return '';
+    if (/^https?:\/\//i.test(value) || /^tg:\/\//i.test(value)) return value;
+    if (/^(t\.me|telegram\.me)\//i.test(value)) return 'https://' + value;
+    if (/^@/.test(value)) return 'https://t.me/' + value.slice(1);
+    return 'https://' + value;
+}
+
+function saveBrandingAndLinks() {
+    const siteName = (document.getElementById('site-name').value || 'NivaFollowerCoinBuy').trim() || 'NivaFollowerCoinBuy';
+    const channel = normalizeLink(document.getElementById('link-channel').value);
+    const help = normalizeLink(document.getElementById('link-help').value);
+
+    Promise.all([
+        db.ref('settings/branding').set({ siteName }),
+        db.ref('settings/links').set({ channel, help })
+    ]).then(() => {
+        document.getElementById('link-channel').value = channel;
+        document.getElementById('link-help').value = help;
+        alert('Saved!');
+    });
+}
+db.ref('settings/branding').on('value', snap => {
+    const branding = snap.val() || {};
+    document.getElementById('site-name').value = branding.siteName || 'NivaFollowerCoinBuy';
+    document.title = (branding.siteName || 'NivaFollowerCoinBuy') + ' - Admin Panel';
+});
+db.ref('settings/links').on('value', snap => {
+    const data = snap.val() || {};
+    document.getElementById('link-channel').value = data.channel || '';
+    document.getElementById('link-help').value = data.help || '';
+});
+
+function addPayment() { const name = document.getElementById('new-pay-method').value; if(name) db.ref('paymentMethods/'+name).set({status: true}); }
+function renderPaymentList() { db.ref('paymentMethods').on('value', snap => { let html = ""; snap.forEach(p => { html += `<div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border); align-items:center;"><span style="color:white">${p.key}</span><div style="display:flex; gap:8px;"><label class="switch"><input type="checkbox" ${p.val().status?'checked':''} onchange="db.ref('paymentMethods/${p.key}').update({status:this.checked})"><span class="slider"></span></label><button style="border:none; color:var(--danger); background:none; font-weight:800;" onclick="db.ref('paymentMethods/${p.key}').remove()">Del</button></div></div>`; }); document.getElementById('payment-list').innerHTML = html; }); }
+
+function goBackToUserPanel() {
+    window.location.href = 'user.html';
+}
+
+window.onload = () => {
+    if (isAdmin) {
+        document.getElementById('admin-panel').style.display = 'block';
+        startSystem();
+    } else {
+        document.getElementById('access-denied').style.display = 'flex';
+    }
+};
+</script> 
+</body> 
+</html>
